@@ -124,7 +124,6 @@ artist_line_summary <- with_artist %>%
 
 ```
 
-
 ### Visualize data
 ```{r, fig.width = 9, fig.height = 10}
 
