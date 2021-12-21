@@ -135,7 +135,7 @@ with_artist %>%
   labs(y = NULL,
        x = "Lines",
        color = NULL,
-       caption = "\nTidyTuesday • 2021 - Week 51 • Visualization by @artemisia_003",
+       caption = "\nTidyTuesday • 2021 - Week 51",
        title = "Spice Girls Lines by Singer") +
 
   geom_point(aes(y = track_name, x = ginger * line_number, color = "Ginger"), 
