@@ -1,0 +1,222 @@
+---
+title: '#TidyTuesday'
+author: "Week 51"
+date: "12/14/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Load packages
+```{r}
+library(tidyverse)
+library(skimr)
+library(ggstance)
+```
+
+### Import data
+```{r}
+
+lyrics <-  read.csv("https://github.com/jacquietran/spice_girls_data/raw/main/data/lyrics.csv", header = TRUE)
+
+lyrics <- lyrics %>% dplyr::rename(track_name = song_name) %>% 
+  dplyr::select(album_name, track_name, line_number, line, section_artist)
+
+studio_album_tracks <-  read.csv("https://github.com/jacquietran/spice_girls_data/raw/main/data/studio_album_tracks.csv", header = TRUE)
+
+studio_album_tracks <- studio_album_tracks %>% 
+    dplyr::select(album_name, track_name, danceability)
+
+
+```
+
+### Combine data
+```{r}
+
+combined <- left_join(studio_album_tracks, lyrics, by =  c("track_name", "album_name"))
+
+```
+
+### Summarize lines by singer
+```{r}
+
+#--------------------------------------
+# Standardize the section_artist column
+#--------------------------------------
+# Replace "All" and "Spice Girls" with "Ginger Sporty Posh Scary Baby"
+combined$section_artist <- gsub("All", "Ginger Sporty Posh Scary Baby", 
+                                combined$section_artist)
+
+combined$section_artist <- gsub("Spice Girls", "Ginger Sporty Posh Scary Baby", 
+                                combined$section_artist)
+
+# Replace "Victoria" with "Posh"
+combined$section_artist <- gsub("Victoria", "Posh", 
+                                combined$section_artist)
+    
+#--------------------------------------
+# Create new columns for each singer
+#--------------------------------------
+combined <- combined %>% 
+  mutate(ginger = as.numeric(0),
+         sporty = as.numeric(0),
+         posh   = as.numeric(0),
+         scary  = as.numeric(0),
+         baby   = as.numeric(0))
+
+#--------------------------------------
+# Assign singers to each line
+#--------------------------------------
+with_artist <- combined %>% 
+   mutate(
+     
+     ginger = if_else(
+     condition = grepl(pattern = "ginger", x = section_artist, ignore.case = TRUE),
+     true  = 1,
+     false = ginger),
+
+     sporty = if_else(
+     condition = grepl(pattern = "sporty", x = section_artist, ignore.case = TRUE),
+     true  = 1,
+     false = sporty),
+
+     posh = if_else(
+     condition = grepl(pattern = "posh", x = section_artist, ignore.case = TRUE),
+     true  = 1,
+     false = posh),
+     
+     scary = if_else(
+     condition = grepl(pattern = "scary", x = section_artist, ignore.case = TRUE),
+     true  = 1,
+     false = scary),
+     
+     baby = if_else(
+     condition = grepl(pattern = "baby", x = section_artist, ignore.case = TRUE),
+     true  = 1,
+     false = baby)
+     
+     )
+
+#--------------------------------------
+# Summarize lines by singer
+#--------------------------------------
+artist_line_summary <- with_artist %>%
+  
+  group_by(track_name, danceability) %>% 
+
+  # Summarize lines by singer and song
+  summarise(ginger = sum(ginger),
+            sporty = sum(sporty),
+            posh = sum(posh),
+            scary = sum(scary),
+            baby = sum(baby),
+            nlines = max(line_number)) %>% 
+
+  # Proportion of lines for each singer by song
+  mutate(ginger_prop = ginger/nlines,
+         sporty_prop = sporty/nlines,
+         posh_prop = posh/nlines,
+         scary_prop = scary/nlines,
+         baby_prop = baby/nlines,
+         
+         # Which singer sings the highest proportion of lines?
+         most_prop = max(c(ginger_prop, sporty_prop, posh_prop, scary_prop, baby_prop)),
+         which_most_prop = "multiple",
+         
+         which_most_prop = case_when(
+           most_prop == ginger_prop & !(ginger_prop %in% c(sporty_prop, posh_prop, scary_prop, baby_prop))    ~ "ginger",
+           most_prop == sporty_prop & !(sporty_prop %in% c(ginger_prop, posh_prop, scary_prop, baby_prop))    ~ "sporty",
+           most_prop == posh_prop   & !(posh_prop   %in% c(ginger_prop, sporty_prop, scary_prop, baby_prop))  ~ "posh",
+           most_prop == scary_prop  & !(scary_prop  %in% c(ginger_prop, sporty_prop, posh_prop, baby_prop))   ~ "scary",
+           most_prop == baby_prop   & !(baby_prop   %in% c(ginger_prop, sporty_prop, posh_prop, scary_prop))  ~ "baby"),
+         
+         fill_color = case_when(
+           which_most_prop == "ginger" ~ "orange",
+           which_most_prop == "sporty" ~ "green",
+           which_most_prop == "posh"   ~ "yellow",
+           which_most_prop == "scary"  ~ "red",
+           which_most_prop == "baby"   ~ "pink"
+         )
+         
+         ) %>% 
+
+  # Only keep records with information for each line
+  dplyr::filter(!is.na(nlines))
+
+
+
+with_artist <- left_join(with_artist, (artist_line_summary %>% dplyr::select(track_name, nlines)), by = "track_name")
+
+with_artist <- with_artist %>% 
+  dplyr::filter(!is.na(nlines)) %>% 
+  mutate(track_name = reorder(track_name, nlines))
+
+```
+
+
+
+### Visualize data
+
+```{r, fig.width = 10, fig.height = 10}
+
+with_artist %>% 
+  
+  ggplot(aes(y = track_name, x = line_number)) +
+  
+  labs(y = NULL,
+       x = NULL,
+       color = "Singer",
+       caption = "\nTidyTuesday • 2021 - Week 51 • Visualization by @artemisia_003") +
+  
+  geom_point(aes(y = track_name, x = ginger * line_number, color = "Ginger"), 
+              size = 1.75, shape = 15, position = position_nudge(y = 0.25)) +
+  
+  geom_point(aes(y = track_name, x = sporty * line_number, color = "Sporty"), 
+              size = 1.75, shape = 15, position = position_nudge(y = 0.15)) + 
+  
+  geom_point(aes(y = track_name, x = posh * line_number, color = "Posh"), 
+              size = 1.75, shape = 15, position = position_nudge(y = 0)) +
+  
+  geom_point(aes(y = track_name, x = scary * line_number, color = "Scary"), 
+              size = 1.75, shape = 15, position = position_nudge(y = -0.15)) +
+  
+  geom_point(aes(y = track_name, x = baby * line_number, color = "Baby"), 
+              size = 1.75, shape = 15, position = position_nudge(y = -0.25)) +
+  
+  theme_bw()
+
+```
+
+
+```{r, fig.height = 8, fig.width= 7}
+
+artist_line_summary %>% 
+  
+  ggplot() +
+  
+  labs(y = NULL,
+       x = NULL,
+       caption = "\nTidyTuesday • 2021 - Week 51 • Visualization by @artemisia_003") +
+  
+  geom_bar(aes(y = reorder(track_name, danceability), x = danceability, fill = which_most_prop), 
+           color = "black", stat = "identity", width = 0.75) +
+  
+  geom_errorbar(aes(y = track_name, xmin = (ginger_prop * danceability), xmax = (ginger_prop * danceability), color = "Ginger"), width = 0.5, size = 2) +
+
+  geom_errorbar(aes(y = track_name, xmin = (sporty_prop * danceability), xmax = (sporty_prop * danceability), color = "Sporty"), width = 0.5, size = 2) +
+
+  geom_errorbar(aes(y = track_name, xmin = (posh_prop * danceability), xmax = (posh_prop * danceability), color = "Posh"), width = 0.5, size = 2) +
+
+  geom_errorbar(aes(y = track_name, xmin = (scary_prop * danceability), xmax = (scary_prop * danceability), color = "Scary"), width = 0.5, size = 2) +
+
+  geom_errorbar(aes(y = track_name, xmin = (baby_prop * danceability), xmax = (baby_prop * danceability), color = "Baby"), width = 0.5, size = 2) +
+  
+  theme_bw()
+  
+  
+  
+
+```
+
