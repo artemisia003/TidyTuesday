@@ -18,12 +18,12 @@ library(here)
 ### Import data
 ```{r}
 
-lyrics <-  read.csv(, header = TRUE)
+lyrics <-  read.csv("https://github.com/jacquietran/spice_girls_data/raw/main/data/lyrics.csv", header = TRUE)
 
 lyrics <- lyrics %>% dplyr::rename(track_name = song_name) %>% 
   dplyr::select(album_name, track_name, line_number, line, section_artist)
 
-studio_album_tracks <-  read.csv(, header = TRUE)
+studio_album_tracks <-  read.csv("https://github.com/jacquietran/spice_girls_data/raw/main/data/studio_album_tracks.csv", header = TRUE)
 
 studio_album_tracks <- studio_album_tracks %>% 
     dplyr::select(album_name, track_name, danceability)
