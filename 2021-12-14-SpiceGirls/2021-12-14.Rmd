@@ -10,10 +10,9 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ### Load packages
-```{r}
+```{r, warning = FALSE, message = FALSE}
 library(tidyverse)
-library(skimr)
-library(ggstance)
+library(here)
 ```
 
 ### Import data
@@ -112,111 +111,75 @@ artist_line_summary <- with_artist %>%
             posh = sum(posh),
             scary = sum(scary),
             baby = sum(baby),
-            nlines = max(line_number)) %>% 
-
-  # Proportion of lines for each singer by song
-  mutate(ginger_prop = ginger/nlines,
-         sporty_prop = sporty/nlines,
-         posh_prop = posh/nlines,
-         scary_prop = scary/nlines,
-         baby_prop = baby/nlines,
-         
-         # Which singer sings the highest proportion of lines?
-         most_prop = max(c(ginger_prop, sporty_prop, posh_prop, scary_prop, baby_prop)),
-         which_most_prop = "multiple",
-         
-         which_most_prop = case_when(
-           most_prop == ginger_prop & !(ginger_prop %in% c(sporty_prop, posh_prop, scary_prop, baby_prop))    ~ "ginger",
-           most_prop == sporty_prop & !(sporty_prop %in% c(ginger_prop, posh_prop, scary_prop, baby_prop))    ~ "sporty",
-           most_prop == posh_prop   & !(posh_prop   %in% c(ginger_prop, sporty_prop, scary_prop, baby_prop))  ~ "posh",
-           most_prop == scary_prop  & !(scary_prop  %in% c(ginger_prop, sporty_prop, posh_prop, baby_prop))   ~ "scary",
-           most_prop == baby_prop   & !(baby_prop   %in% c(ginger_prop, sporty_prop, posh_prop, scary_prop))  ~ "baby"),
-         
-         fill_color = case_when(
-           which_most_prop == "ginger" ~ "orange",
-           which_most_prop == "sporty" ~ "green",
-           which_most_prop == "posh"   ~ "yellow",
-           which_most_prop == "scary"  ~ "red",
-           which_most_prop == "baby"   ~ "pink"
-         )
-         
-         ) %>% 
-
+            nlines = max(line_number)) %>%
+  
   # Only keep records with information for each line
   dplyr::filter(!is.na(nlines))
 
-
-
-with_artist <- left_join(with_artist, (artist_line_summary %>% dplyr::select(track_name, nlines)), by = "track_name")
-
-with_artist <- with_artist %>% 
-  dplyr::filter(!is.na(nlines)) %>% 
-  mutate(track_name = reorder(track_name, nlines))
+  with_artist <- left_join(with_artist, (artist_line_summary %>% dplyr::select(track_name, nlines)), by = "track_name")
+  
+  with_artist <- with_artist %>% 
+    dplyr::filter(!is.na(nlines)) %>% 
+    mutate(track_name = reorder(track_name, nlines))
 
 ```
 
 
-
 ### Visualize data
-
-```{r, fig.width = 10, fig.height = 10}
+```{r, fig.width = 9, fig.height = 10}
 
 with_artist %>% 
   
   ggplot(aes(y = track_name, x = line_number)) +
   
   labs(y = NULL,
-       x = NULL,
-       color = "Singer",
-       caption = "\nTidyTuesday • 2021 - Week 51 • Visualization by @artemisia_003") +
-  
+       x = "Lines",
+       color = NULL,
+       caption = "\nTidyTuesday • 2021 - Week 51 • Visualization by @artemisia_003",
+       title = "Spice Girls Lines by Singer") +
+
   geom_point(aes(y = track_name, x = ginger * line_number, color = "Ginger"), 
-              size = 1.75, shape = 15, position = position_nudge(y = 0.25)) +
+              size = 8, shape = 95, position = position_nudge(y = 0.1)) +
   
   geom_point(aes(y = track_name, x = sporty * line_number, color = "Sporty"), 
-              size = 1.75, shape = 15, position = position_nudge(y = 0.15)) + 
+              size = 8, shape = 95, position = position_nudge(y = -0.2)) + 
   
   geom_point(aes(y = track_name, x = posh * line_number, color = "Posh"), 
-              size = 1.75, shape = 15, position = position_nudge(y = 0)) +
+              size = 8, shape = 95, position = position_nudge(y = 0)) +
   
   geom_point(aes(y = track_name, x = scary * line_number, color = "Scary"), 
-              size = 1.75, shape = 15, position = position_nudge(y = -0.15)) +
+              size = 8, shape = 95, position = position_nudge(y = -0.1)) +
   
   geom_point(aes(y = track_name, x = baby * line_number, color = "Baby"), 
-              size = 1.75, shape = 15, position = position_nudge(y = -0.25)) +
+              size = 8, shape = 95, position = position_nudge(y = 0.2)) +
   
-  theme_bw()
+  scale_color_manual(values = c("#4C5AAE", "#F1749C", "#E6EB59", "#2C9ABF", "#FEDB16")) +
+  
+  theme_classic() +
+  
+  guides(color = guide_legend(override.aes = list(width = 7))) +
+  
+  theme(
+    axis.text.y       = element_text(size = 12, face = "bold"),
+    axis.text.x       = element_text(size = 10),
+    axis.title.x      = element_text(size = 12, face = "bold"),
+    plot.title        = element_text(size = 18, face = "bold"),
+    plot.caption      = element_text(size = 12, face = "italic"),
+    legend.title      = element_text(size = 14, face = "bold"),
+    legend.text       = element_text(size = 16),
+    legend.position   = c(0.8, 0.2),
+    legend.background = element_rect(fill = "white", linetype = "solid", 
+                                     color = "black", size = 1),
+    panel.border      = element_rect(color = "black", fill = NA)
+    
+    )
 
 ```
 
+### Save plot
+```{r}
 
-```{r, fig.height = 8, fig.width= 7}
+ggsave(filename = here::here("2021-12-14-SpiceGirls", "output", "week_51_plot.png"), device = "png", width = 9, height = 10)
 
-artist_line_summary %>% 
-  
-  ggplot() +
-  
-  labs(y = NULL,
-       x = NULL,
-       caption = "\nTidyTuesday • 2021 - Week 51 • Visualization by @artemisia_003") +
-  
-  geom_bar(aes(y = reorder(track_name, danceability), x = danceability, fill = which_most_prop), 
-           color = "black", stat = "identity", width = 0.75) +
-  
-  geom_errorbar(aes(y = track_name, xmin = (ginger_prop * danceability), xmax = (ginger_prop * danceability), color = "Ginger"), width = 0.5, size = 2) +
-
-  geom_errorbar(aes(y = track_name, xmin = (sporty_prop * danceability), xmax = (sporty_prop * danceability), color = "Sporty"), width = 0.5, size = 2) +
-
-  geom_errorbar(aes(y = track_name, xmin = (posh_prop * danceability), xmax = (posh_prop * danceability), color = "Posh"), width = 0.5, size = 2) +
-
-  geom_errorbar(aes(y = track_name, xmin = (scary_prop * danceability), xmax = (scary_prop * danceability), color = "Scary"), width = 0.5, size = 2) +
-
-  geom_errorbar(aes(y = track_name, xmin = (baby_prop * danceability), xmax = (baby_prop * danceability), color = "Baby"), width = 0.5, size = 2) +
-  
-  theme_bw()
-  
-  
-  
 
 ```
-
