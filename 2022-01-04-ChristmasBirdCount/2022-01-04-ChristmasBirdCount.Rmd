@@ -28,7 +28,6 @@ tuesdata <- tidytuesdayR::tt_load('2019-06-18')
 bird_counts <- tuesdata$bird_counts
 
 ```
-
   
 ### Visualize birds counted by species for each year
 ```{r, fig.width = 14, fig.height = 6.5, warning = FALSE}
@@ -179,4 +178,3 @@ list.files(path = here::here("2022-01-04-ChristmasBirdCount", "intermediate_file
   image_write(here::here("2022-01-04-ChristmasBirdCount", "output", "Week_01_plot.gif"))
 
 ```
-
