@@ -128,7 +128,7 @@ bird_counts_plot <- bird_counts %>%
 
 
 year_track_plot <- bird_counts %>% 
-  
+   
   dplyr::select(year) %>% 
   
   distinct() %>% 
