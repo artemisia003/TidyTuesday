@@ -1,0 +1,182 @@
+---
+title: '#TidyTuesday'
+author: "Week 1"
+date: "Jan. 4, 2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Load packages
+```{r, warning = FALSE, message = FALSE}
+
+library(tidyverse)
+library(here)
+library(rphylopic)
+library(gridExtra)
+library(magick)
+
+```
+
+### Import data
+```{r}
+
+tuesdata <- tidytuesdayR::tt_load('2019-06-18')
+
+bird_counts <- tuesdata$bird_counts
+
+```
+
+  
+### Visualize birds counted by species for each year
+```{r, fig.width = 14, fig.height = 6.5, warning = FALSE}
+
+all_years <- unique(bird_counts$year)
+
+for(i in 1:length(all_years)){
+
+current_year <- all_years[i]
+
+if(nrow(bird_counts %>% filter(year == current_year,
+                               how_many_counted_by_hour > 0)) > 0){
+    
+most_seen_species <- (bird_counts %>% 
+                      filter(year == current_year,
+                             how_many_counted_by_hour > 0) %>% 
+                      arrange(desc(how_many_counted_by_hour)) %>% 
+                      filter(row_number() == 1))$species
+
+most_seen_max <- (bird_counts %>% 
+                  filter(year == current_year,
+                         how_many_counted_by_hour > 0) %>% 
+                  arrange(desc(how_many_counted_by_hour)) %>% 
+                  filter(row_number() == 1))$how_many_counted_by_hour
+
+most_seen_latin <- unique((bird_counts %>% filter(species == most_seen_species))$species_latin)
+  
+most_seen_name_search <- rphylopic::name_search(text = most_seen_latin, options = "namebankID")[[1]]
+
+
+if(length(rphylopic::name_images(uuid = most_seen_name_search$uid[1])$same) > 0){
+
+most_seen_id <- rphylopic::name_images(uuid = most_seen_name_search$uid[1])$same[[1]]$uid
+
+}else{
+  
+most_seen_id <- rphylopic::name_images(uuid = most_seen_name_search$uid[1])$supertaxa[[1]]$uid
+  
+}
+
+most_seen_pic <- rphylopic::image_data(most_seen_id, size = 256)[[1]]
+
+bird_counts_plot <- bird_counts %>% 
+  
+  filter(year == current_year) %>% 
+  
+  arrange(desc(how_many_counted_by_hour)) %>% 
+  
+  filter(how_many_counted_by_hour > 0) %>% 
+  
+  head(7) %>%
+  
+  mutate(most_seen = "No") %>% 
+    
+  mutate(most_seen = if_else(
+    condition = species == most_seen_species,
+    true = "Yes",
+    false = most_seen)
+    
+  ) %>% 
+    
+    ggplot() +
+    
+    labs(title = paste0("Most Counted Species by Hour - ", current_year),
+         subtitle = "Ontario Christmas Bird Counts",
+         x = NULL,
+         y = "",
+         caption = "\nTidyTuesday • 2022 • Week 01 \n Source @BirdsCanada & @_sharleen_w  |  Visualization: @artemisia003") +
+    
+    geom_col(aes(x = reorder(species, desc(how_many_counted_by_hour)), 
+                 y = how_many_counted_by_hour,
+                 color = most_seen,
+                 fill  = most_seen), 
+             size = 1.5) +
+    
+    scale_color_manual(values = c("Yes" = "black", "No" = "gray30"), guide = FALSE) +
+    
+    scale_fill_manual(values = c("Yes" = "turquoise4", "No" = "gray50"), guide = FALSE) +
+    
+    add_phylopic(img = most_seen_pic, alpha = 1, 
+                 ysize = (most_seen_max/2), 
+                 y = most_seen_max*(3/4), x = 6, 
+                 color = "turquoise4") +
+    
+    geom_label(aes(most_seen_max*(5.5/8), x = 6, label = most_seen_species), 
+               fill = "white", color = "turquoise4", size = 7) +
+    
+    theme_bw() +
+    
+    theme(legend.position   = "none",
+          axis.text.y       = element_text(size = 12),
+          axis.text.x       = element_text(size = 14, face = "bold", angle = 30, hjust = 1,
+                                           color = "gray20"),
+          plot.title        = element_text(size = 18, face = "bold"),
+          plot.subtitle     = element_text(size = 16, face = "italic"),
+          plot.caption      = element_text(size = 14, face = "italic", hjust = 0),
+          panel.border      = element_rect(color = "gray20", fill = NA))
+
+
+year_track_plot <- bird_counts %>% 
+  
+  dplyr::select(year) %>% 
+  
+  distinct() %>% 
+  
+  mutate(current_year_col = case_when(year == current_year ~ 1)) %>% 
+  
+  ggplot() +
+  
+  labs(x = NULL,
+       y = NULL) +
+  
+  geom_point(aes(x = 1, y = year), color = "gray25", size = 5, shape = "|") +
+  
+  geom_point(aes(x = current_year_col, y = year), color = "turquoise4", size = 5) +
+  
+  scale_y_continuous(position = "right") +
+  
+  theme_minimal() +
+  
+  theme(legend.position   = "none",
+        axis.text.y       = element_text(hjust = 1, color = "gray25", size = 14, face = "bold"),
+        axis.text.x       = element_text(color = NA),
+        panel.border      = element_rect(color = NA, fill = NA),
+        panel.grid.major  = element_blank(),
+        panel.grid.minor  = element_blank())
+
+plot_file_name <- paste0(current_year, "_plot.png")
+
+ggsave(plot = grid.arrange(bird_counts_plot, year_track_plot, nrow = 1, widths = c(13, 1)), 
+       
+filename = here::here("2022-01-04-ChristmasBirdCount", "intermediate_files", plot_file_name), 
+       device = "png", width = 14, height = 6.5)
+
+  }
+}
+
+```
+
+### Combine plots and save
+```{r}
+
+list.files(path = here::here("2022-01-04-ChristmasBirdCount", "intermediate_files"), 
+           pattern = '*.png', full.names = TRUE) %>% 
+        image_read() %>%
+        image_join() %>%
+        image_animate(fps = 1, optimize = TRUE, dispose = "previous") %>%    
+  image_write(here::here("2022-01-04-ChristmasBirdCount", "output", "Week_01_plot.gif"))
+
+```
+
